@@ -5,12 +5,11 @@
 		 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>com.sivalabs</groupId>
-	<artifactId>spring-boot-microservices-series</artifactId>
+	<groupId>com.doms</groupId>
+	<artifactId>distributed-order-management-system</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>pom</packaging>
-
-	<name>spring-boot-microservices-series</name>
+	<name>Distributed Order Management System</name>
 
 	<modules>
 		<module>config-server</module>

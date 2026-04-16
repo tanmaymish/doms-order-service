@@ -1,82 +1,88 @@
-# spring-boot-microservices-series
-Code for [SpringBoot MicroServices Blog Series](https://sivalabs.in/2018/03/microservices-using-springboot-spring-cloud-part-1-overview/)
+# Distributed Order Management System (DOMS)
 
-> [!IMPORTANT]  
-> This is based on older versions of Spring Boot, Spring Cloud, and Spring Cloud Netflix.
-> Please refer to the [Spring Boot MicroServices Course](https://github.com/sivaprasadreddy/spring-boot-microservices-course) for the latest version.
+Distributed Order Management System (DOMS) is a production-grade microservices-based platform designed for efficient order processing, tracking, and management. It leverages Spring Boot and Spring Cloud to provide a scalable, resilient architecture.
 
-## How to run?
+## 🚀 Key Features
 
-### Build all modules:
+- **End-to-End Order Tracking**: Monitor order states from `CREATED` to `DELIVERED`.
+- **High Resilience**: Automated retry logic for order processing using Spring Retry.
+- **Microservices Architecture**: Independently deployable services for catalog, inventory, and orders.
+- **Service Discovery & Config**: Centralized configuration and Eureka-based service discovery.
+- **Observability**: Structured logging and real-time metrics dashboard endpoints.
+- **Edge Gateway**: Simplified API access through Zuul gateway.
 
-`spring-boot-microservices-series> ./mvnw clean package -DskipTests=true`
+## 🏗 Architecture
 
-### Start infrastructure modules in docker:
-
-**The simplest way to run all the services in Docker:**
-
-`spring-boot-microservices-series> ./run.sh start_all`
-
-**To start only infrastructure services (mysqldb, rabbitmq, config-server, service-registry, hystrix-dashboard) in docker:**
-
-`spring-boot-microservices-series> ./run.sh start_infra`
-
-**Start each microservice either in local or in docker:**
-
-**Local:** `spring-boot-microservices-series/catalog-service> ./mvnw spring-boot:run`
-
-**Docker:** `spring-boot-microservices-series> ./run.sh start <service>`
-
-Ex: `spring-boot-microservices-series> ./run.sh start catalog-service`
-
-
-* MySQL container:
-     * hostname: mysqldb
-     * Ports : 3306:3306 (<host_port>:<container_port>)
-     * Username/Password: root/admin
-
-* RabbitMQ:
-     * hostname: rabbitmq
-     * Ports: 5672:5672, 15672:15672
-     * Admin UI: http://localhost:15672
-     * Username/password: guest/guest
-
-* Vault:
-    * hostname: vault
-    * Ports: 8200:8200
-    * Root token: 934f9eae-31ff-a8ef-e1ca-4bea9e07aa09
-
-* config-server:
-    * hostname: config-server
-    * Ports: 8888:8888
-    * URL: http://localhost:8888/
-
-* service-registry:
-    * hostname: service-registry
-    * Ports: 8761:8761
-    * URL: http://localhost:8761/
+```mermaid
+graph TD
+    Client[Client Browser / Postman] --> Gateway[Zuul API Gateway]
+    Gateway --> Orders[Order Service]
+    Gateway --> Catalog[Catalog Service]
+    Gateway --> Inventory[Inventory Service]
     
-* hystrix-dashboard:
-    * hostname: hystrix-dashboard
-    * Ports: 8788:8788
-    * URL: http://localhost:8788/hystrix
+    Orders --> DB[(H2/MySQL DB)]
+    Orders --> Registry[Eureka Service Registry]
+    Catalog --> Registry
+    Inventory --> Registry
+    
+    Config[Config Server] -.-> Orders
+    Config -.-> Catalog
+    Config -.-> Inventory
+```
 
-* catalog-service:
-    * hostname: catalog-service
-    * Ports: 18181:8181
-    * URL: http://localhost:18181
-    
-* inventory-service   
-    * hostname: inventory-service
-    * Ports: 18282:8282
-    * URL: http://localhost:18282
-    
-* order-service  
-    * hostname: order-service
-    * Ports: 18383:8383
-    * URL: http://localhost:18383 
-    
-* shoppingcart-ui    
-    * hostname: shoppingcart-ui
-    * Ports: 18080:8080
-    * URL: http://localhost:18080
+## 🛠 Tech Stack
+
+- **Backend**: Java 8, Spring Boot 2.0.0.RELEASE
+- **Frameworks**: Spring Cloud (Finchley), Spring Data JPA
+- **Database**: H2 (In-memory), MySQL (Optional)
+- **messaging**: RabbitMQ (for future scaling)
+- **Monitoring**: Spring Actuator, Hystrix Dashboard, Zipkin
+
+## 📡 API Endpoints (Order Service)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| POST | `/api/orders` | Create a new order |
+| GET | `/api/orders/{id}` | Get order details |
+| GET | `/api/orders/{id}/status` | Get real-time order status |
+| GET | `/api/metrics/orders` | Get system-wide order metrics |
+
+## ⚙️ How to Run
+
+### 1. Build the Modules
+```bash
+./mvnw clean package -DskipTests=true
+```
+
+### 2. Start Infrastructure
+Run the included helper script to start MySQL, RabbitMQ, Config Server, and Service Registry:
+```bash
+./run.sh start_infra
+```
+
+### 3. Start DOMS Services
+Start the core microservices:
+```bash
+./run.sh start order-service
+./run.sh start catalog-service
+./run.sh start inventory-service
+```
+
+### 4. Access the System
+- **API Gateway**: `http://localhost:8080/api/`
+- **Service Registry**: `http://localhost:8761/`
+- **Hystrix Dashboard**: `http://localhost:8788/hystrix`
+
+## 📊 Metrics Sample Output
+`GET /api/metrics/orders`
+```json
+{
+    "total_orders": 150,
+    "failed_orders": 3,
+    "success_orders": 147,
+    "success_rate": "98.00%"
+}
+```
+
+---
+*Transformed from Spring Boot Microservices Series by Antigravity AI.*
