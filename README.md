@@ -30,6 +30,33 @@ graph TD
     Config -.-> Inventory
 ```
 
+## 🧑‍💻 User Lifecycle Journey
+
+```mermaid
+sequenceDiagram
+    participant User as Customer
+    participant UI as Shopping Cart UI
+    participant Catalog as Catalog Service
+    participant Orders as Order Service
+    participant Inventory as Inventory Service
+
+    User->>UI: Browse Products
+    UI->>Catalog: Fetch Products
+    Catalog-->>UI: Product List
+    User->>UI: Select Product & Checkout
+    UI->>Orders: Submit Order
+    Orders->>Inventory: Validate Stock
+    Inventory-->>Orders: Stock Confirmed
+    Orders-->>User: Order ID (Status: CREATED)
+    
+    Note over Orders: Background: Order Processing (with Retries)
+    
+    loop Tracking
+        User->>Orders: Check Order Status
+        Orders-->>User: Status (PROCESSING/SHIPPED/DELIVERED)
+    end
+```
+
 ## 🛠 Technology Stack
 
 *   **Core**: Java 8, Spring Boot 2.0.x
