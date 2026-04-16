@@ -1,11 +1,13 @@
 package com.doms.orderservice.web.controllers;
 
+import com.doms.orderservice.entities.Order;
 import com.doms.orderservice.services.OrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -38,11 +40,10 @@ public class OrderController {
         log.info("API request: Get Order Status for ID {}", id);
         return orderService.getOrderById(id)
                 .map(order -> {
-                    Map<String, Object> response = Map.of(
-                            "orderId", order.getId(),
-                            "status", order.getStatus(),
-                            "updatedAt", order.getUpdatedAt()
-                    );
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("orderId", order.getId());
+                    response.put("status", order.getStatus());
+                    response.put("updatedAt", order.getUpdatedAt());
                     return ResponseEntity.ok(response);
                 })
                 .orElse(ResponseEntity.notFound().build());
