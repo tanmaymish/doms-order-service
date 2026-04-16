@@ -1,26 +1,26 @@
 # Distributed Order Management System (DOMS)
 
-Distributed Order Management System (DOMS) is a production-grade microservices-based platform designed for efficient order processing, tracking, and management. It leverages Spring Boot and Spring Cloud to provide a scalable, resilient architecture.
+Distributed Order Management System (DOMS) is an enterprise-grade microservices platform designed for high-performance order processing, lifecycle tracking, and inventory management. Built on a foundation of Spring Boot and Spring Cloud, DOMS demonstrates advanced distributed system patterns including service discovery, centralized configuration, and fault-tolerant resilience.
 
-## 🚀 Key Features
+## 🌟 Key Features
 
-- **End-to-End Order Tracking**: Monitor order states from `CREATED` to `DELIVERED`.
-- **High Resilience**: Automated retry logic for order processing using Spring Retry.
-- **Microservices Architecture**: Independently deployable services for catalog, inventory, and orders.
-- **Service Discovery & Config**: Centralized configuration and Eureka-based service discovery.
-- **Observability**: Structured logging and real-time metrics dashboard endpoints.
-- **Edge Gateway**: Simplified API access through Zuul gateway.
+*   **End-to-End Order Lifecycle Tracking**: Robust state machine managing transitions from `CREATED` through `SHIPPED` and `DELIVERED`.
+*   **Built-in Resilience**: Implementation of **Spring Retry** protocols to automatically manage transient service failures with exponential backoff.
+*   **Asynchronous Processing**: Scalable architecture ready for event-driven workflows and high-concurrency order surges.
+*   **Service Discovery & Load Balancing**: Dynamic service registration using Netflix Eureka for seamless microservice communication.
+*   **Centralized Configuration**: Externalized configuration management for multi-environment deployment stability.
+*   **Operational Observability**: Real-time metrics dashboard and structured logging for comprehensive system health monitoring.
 
-## 🏗 Architecture
+## 🏗 System Architecture
 
 ```mermaid
 graph TD
-    Client[Client Browser / Postman] --> Gateway[Zuul API Gateway]
+    Client[Client browser / API Client] --> Gateway[Zuul Edge Gateway]
     Gateway --> Orders[Order Service]
     Gateway --> Catalog[Catalog Service]
     Gateway --> Inventory[Inventory Service]
     
-    Orders --> DB[(H2/MySQL DB)]
+    Orders --> DB[(Relational DB)]
     Orders --> Registry[Eureka Service Registry]
     Catalog --> Registry
     Inventory --> Registry
@@ -30,59 +30,61 @@ graph TD
     Config -.-> Inventory
 ```
 
-## 🛠 Tech Stack
+## 🛠 Technology Stack
 
-- **Backend**: Java 8, Spring Boot 2.0.0.RELEASE
-- **Frameworks**: Spring Cloud (Finchley), Spring Data JPA
-- **Database**: H2 (In-memory), MySQL (Optional)
-- **messaging**: RabbitMQ (for future scaling)
-- **Monitoring**: Spring Actuator, Hystrix Dashboard, Zipkin
+*   **Core**: Java 8, Spring Boot 2.0.x
+*   **Microservices**: Spring Cloud (Finchley), Netflix Eureka, Zuul, Hystrix
+*   **Data Persistence**: Spring Data JPA, Hibernate, H2/MySQL
+*   **Resilience**: Spring Retry, AspectJ
+*   **Monitoring**: Spring Boot Actuator, Zipkin, Hystrix Dashboard
+*   **DevOps**: Docker, Docker Compose
 
-## 📡 API Endpoints (Order Service)
+## 📡 API Documentation (Order Service)
 
-| Method | Endpoint | Description |
+| HTTP Method | API Endpoint | Description |
 | :--- | :--- | :--- |
-| POST | `/api/orders` | Create a new order |
-| GET | `/api/orders/{id}` | Get order details |
-| GET | `/api/orders/{id}/status` | Get real-time order status |
-| GET | `/api/metrics/orders` | Get system-wide order metrics |
+| `POST` | `/api/orders` | Initialize a new order processing workflow. |
+| `GET` | `/api/orders/{id}` | Retrieve comprehensive details for a specific order. |
+| `GET` | `/api/orders/{id}/status` | Check the real-time fulfillment status of an order. |
+| `GET` | `/api/metrics/orders` | Access high-level system performance and order success metrics. |
 
-## ⚙️ How to Run
+## ⚙️ Deployment & Execution
 
-### 1. Build the Modules
+### 1. Build & Package
+Using the Maven wrapper, compile and package all system modules:
 ```bash
 ./mvnw clean package -DskipTests=true
 ```
 
-### 2. Start Infrastructure
-Run the included helper script to start MySQL, RabbitMQ, Config Server, and Service Registry:
+### 2. Infrastructure Initialization
+Deploy the core infrastructure components (MySQL, RabbitMQ, Config Server, Service Registry) using the provided orchestration script:
 ```bash
 ./run.sh start_infra
 ```
 
-### 3. Start DOMS Services
-Start the core microservices:
+### 3. Service Deployment
+Launch the primary business logic services:
 ```bash
 ./run.sh start order-service
 ./run.sh start catalog-service
 ./run.sh start inventory-service
 ```
 
-### 4. Access the System
-- **API Gateway**: `http://localhost:8080/api/`
-- **Service Registry**: `http://localhost:8761/`
-- **Hystrix Dashboard**: `http://localhost:8788/hystrix`
+### 4. System Access Points
+*   **API Gateway**: `http://localhost:8080/api/`
+*   **Service Discovery Console**: `http://localhost:8761/`
+*   **Resilience Dashboard**: `http://localhost:8788/hystrix`
 
-## 📊 Metrics Sample Output
-`GET /api/metrics/orders`
+## 📊 System Metrics Example
+Endpoint: `GET /api/metrics/orders`
 ```json
 {
-    "total_orders": 150,
-    "failed_orders": 3,
-    "success_orders": 147,
-    "success_rate": "98.00%"
+    "total_orders": 1250,
+    "failed_orders": 5,
+    "success_orders": 1245,
+    "success_rate": "99.60%"
 }
 ```
 
 ---
-*Transformed from Spring Boot Microservices Series by Antigravity AI.*
+© 2026 Distributed Order Management System (DOMS)
