@@ -1,4 +1,4 @@
-# Distributed Order Management System (DOMS)
+# Distributed Order Management System (DOMS) ![CI/CD Pipeline](https://github.com/tanmaymish/doms-order-service/actions/workflows/ci.yml/badge.svg)
 
 Distributed Order Management System (DOMS) is an enterprise-grade microservices platform designed for high-performance order processing, lifecycle tracking, and inventory management. Built on a foundation of Spring Boot and Spring Cloud, DOMS demonstrates advanced distributed system patterns including service discovery, centralized configuration, and fault-tolerant resilience.
 
