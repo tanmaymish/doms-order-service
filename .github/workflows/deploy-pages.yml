@@ -8,17 +8,20 @@ on:
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
-# Publish to the gh-pages branch (classic branch-based Pages pipeline).
+# Official Pages deployment: no gh-pages branch, and configure-pages
+# self-enables Pages on first run so no manual Settings step is needed.
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: pages-ghbranch
+  group: pages
   cancel-in-progress: false
 
 jobs:
-  build-and-publish:
-    name: Build & publish demo build to gh-pages
+  build:
+    name: Build demo console
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,19 +45,32 @@ jobs:
           # Pages serves under /<repo>/ (trailing slash required by Vite).
           VITE_BASE_PATH: "/${{ github.event.repository.name }}/"
           # The build normally writes into shoppingcart-ui's Spring Boot
-          # static resources; the demo publish uses its own output dir so
-          # it never touches that directory.
+          # classpath; the demo publish uses its own output dir so it
+          # never touches that location.
           VITE_OUT_DIR: "dist-demo"
 
-      - name: SPA 404 fallback + disable Jekyll
+      - name: SPA 404 fallback
         working-directory: shoppingcart-ui/frontend
-        run: |
-          cp dist-demo/index.html dist-demo/404.html
-          touch dist-demo/.nojekyll
+        run: cp dist-demo/index.html dist-demo/404.html
 
-      - name: Publish to gh-pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Configure Pages (auto-enable)
+        uses: actions/configure-pages@v5
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./shoppingcart-ui/frontend/dist-demo
-          publish_branch: gh-pages
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: shoppingcart-ui/frontend/dist-demo
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
