@@ -7,6 +7,32 @@ on:
     branches: [ main, master ]
 
 jobs:
+  frontend:
+    name: Frontend lint & build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: shoppingcart-ui/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: shoppingcart-ui/frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: shoppingcart-ui/frontend
+        run: npm run lint
+
+      - name: Type-check & build
+        working-directory: shoppingcart-ui/frontend
+        run: npm run build
+
   build:
     name: Build & Test
     runs-on: ubuntu-latest
@@ -22,8 +48,36 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    - name: Build with Maven
-      run: ./mvnw clean package -DskipTests=true
+    - name: Build & test with Maven
+      # shoppingcart-ui's frontend-maven-plugin builds the React console
+      # as part of this run (bound to generate-resources); every module's
+      # real JUnit test suite runs too, gated by Jacoco coverage reports.
+      run: ./mvnw clean package
+
+    - name: Coverage summary
+      if: always()
+      run: |
+        echo "## Test coverage (instructions covered)" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Module | Coverage |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+        for csv in order-service catalog-service inventory-service; do
+          file="$csv/target/site/jacoco/jacoco.csv"
+          if [ -f "$file" ]; then
+            pct=$(awk -F',' 'NR>1 {missed+=$4; covered+=$5} END {if (missed+covered>0) printf "%.1f%%", (covered/(missed+covered))*100; else print "n/a"}' "$file")
+            echo "| $csv | $pct |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+        done
+
+    - name: Upload coverage reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: jacoco-coverage-reports
+        path: |
+          order-service/target/site/jacoco/
+          catalog-service/target/site/jacoco/
+          inventory-service/target/site/jacoco/
+        retention-days: 14
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -32,4 +86,4 @@ jobs:
       run: docker compose build
 
     - name: Finalize Build
-      run: echo "Build and Docker image creation successful!"
+      run: echo "Build, test, and Docker image creation successful!"

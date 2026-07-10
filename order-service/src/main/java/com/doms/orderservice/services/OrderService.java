@@ -50,9 +50,9 @@ public class OrderService {
     )
     public void processOrder(Order order) {
         log.info("Processing order {} (Attempting...)", order.getId());
-        
+
         // Simulate potential transient failure
-        if (random.nextInt(10) < 3) { // 30% failure rate for demo
+        if (simulateTransientFailure()) { // 30% failure rate for demo
             log.warn("Transient failure occurred while processing order {}", order.getId());
             throw new RuntimeException("Service unavailable during order processing");
         }
@@ -60,9 +60,17 @@ public class OrderService {
         order.setStatus(OrderStatus.PROCESSING);
         orderRepository.save(order);
         log.info("Order {} transitioned to PROCESSING state", order.getId());
-        
+
         // Simulating further workflow
         simulateWorkflow(order);
+    }
+
+    /**
+     * Extracted so tests can subclass and override the failure decision
+     * deterministically instead of depending on {@link Random}.
+     */
+    boolean simulateTransientFailure() {
+        return random.nextInt(10) < 3;
     }
 
     @Recover
