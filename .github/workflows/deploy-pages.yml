@@ -1,0 +1,60 @@
+name: Deploy Console to GitHub Pages
+
+on:
+  push:
+    branches: ["main", "master"]
+    paths:
+      - "shoppingcart-ui/frontend/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+# Publish to the gh-pages branch (classic branch-based Pages pipeline).
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-ghbranch
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    name: Build & publish demo build to gh-pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: shoppingcart-ui/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: shoppingcart-ui/frontend
+        run: npm ci
+
+      - name: Build (demo mode)
+        working-directory: shoppingcart-ui/frontend
+        run: npm run build
+        env:
+          VITE_DEMO_MODE: "true"
+          # Pages serves under /<repo>/ (trailing slash required by Vite).
+          VITE_BASE_PATH: "/${{ github.event.repository.name }}/"
+          # The build normally writes into shoppingcart-ui's Spring Boot
+          # static resources; the demo publish uses its own output dir so
+          # it never touches that directory.
+          VITE_OUT_DIR: "dist-demo"
+
+      - name: SPA 404 fallback + disable Jekyll
+        working-directory: shoppingcart-ui/frontend
+        run: |
+          cp dist-demo/index.html dist-demo/404.html
+          touch dist-demo/.nojekyll
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./shoppingcart-ui/frontend/dist-demo
+          publish_branch: gh-pages

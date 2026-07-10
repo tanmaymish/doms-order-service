@@ -41,6 +41,9 @@ function stop_all() {
 }
 
 function build_api() {
+    # shoppingcart-ui's frontend-maven-plugin builds the React console as
+    # part of this Maven run (see shoppingcart-ui/pom.xml) - no separate
+    # npm step needed.
     ./mvnw clean package -DskipTests
 }
 

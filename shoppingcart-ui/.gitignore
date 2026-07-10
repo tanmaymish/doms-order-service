@@ -1,5 +1,10 @@
 target/
-!.mvn/wrapper/maven-wrapper.jar
+
+### Frontend build (frontend-maven-plugin) ###
+frontend/node/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-demo/
 
 ### STS ###
 .apt_generated
