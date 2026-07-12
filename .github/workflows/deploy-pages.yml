@@ -8,21 +8,22 @@ on:
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
-# Publish to the gh-pages branch (classic branch-based Pages pipeline).
-# One-time setup: Settings -> Pages -> Deploy from a branch -> gh-pages.
-# (The Actions-native flow with configure-pages enablement:true can't be
-# used here: first-time Pages site creation needs repo-admin rights that
-# GITHUB_TOKEN never gets, so it fails with "Resource not accessible".)
+# Official Actions-based Pages deployment. Requires the Pages site to
+# already exist with source = "GitHub Actions" (one-time setup done in
+# repo Settings); configure-pages then only reads the site config, which
+# works fine with the workflow token.
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: pages-ghbranch
+  group: pages
   cancel-in-progress: false
 
 jobs:
-  build-and-publish:
-    name: Build & publish demo build to gh-pages
+  build:
+    name: Build demo console
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,15 +51,26 @@ jobs:
           # never touches that location.
           VITE_OUT_DIR: "dist-demo"
 
-      - name: SPA 404 fallback + disable Jekyll
+      - name: SPA 404 fallback
         working-directory: shoppingcart-ui/frontend
-        run: |
-          cp dist-demo/index.html dist-demo/404.html
-          touch dist-demo/.nojekyll
+        run: cp dist-demo/index.html dist-demo/404.html
 
-      - name: Publish to gh-pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./shoppingcart-ui/frontend/dist-demo
-          publish_branch: gh-pages
+          path: shoppingcart-ui/frontend/dist-demo
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
