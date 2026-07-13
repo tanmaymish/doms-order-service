@@ -5,10 +5,10 @@ import { formatCurrency } from '../lib/format';
 import { useCart } from '../context/CartContext';
 
 const GRADIENTS = [
-  'from-accent-500/25 to-cyan-glow/10',
-  'from-cyan-glow/20 to-accent-500/10',
+  'from-accent-500/25 to-amber-glow/10',
   'from-amber-glow/20 to-accent-500/10',
-  'from-rose-glow/15 to-accent-500/10',
+  'from-accent-300/30 to-stone-400/10',
+  'from-rose-glow/15 to-amber-glow/10',
 ];
 
 export function ProductCard({ product, index }: { product: Product; index: number }) {
