@@ -12,7 +12,8 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 function initialTheme(): Theme {
   const stored = localStorage.getItem('doms-theme');
   if (stored === 'dark' || stored === 'light') return stored;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  // Light-first identity; dark stays one toggle away.
+  return 'light';
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

@@ -2,53 +2,43 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* DOMS visual identity: warm "logistics paper" light theme by default,
+   deep teal primary with amber highlights. Deliberately distinct from
+   dark blue/cyan dashboard aesthetics. */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
 
-  --color-accent-50: #eef2ff;
-  --color-accent-100: #e0e7ff;
-  --color-accent-300: #a5b4fc;
-  --color-accent-400: #818cf8;
-  --color-accent-500: #6366f1;
-  --color-accent-600: #4f46e5;
-  --color-accent-700: #4338ca;
+  --color-accent-50: #f0fdfa;
+  --color-accent-100: #ccfbf1;
+  --color-accent-300: #5eead4;
+  --color-accent-400: #2dd4bf;
+  --color-accent-500: #0d9488;
+  --color-accent-600: #0f766e;
+  --color-accent-700: #115e59;
 
-  --color-cyan-glow: #22d3ee;
-  --color-amber-glow: #fbbf24;
-  --color-rose-glow: #fb7185;
+  --color-amber-glow: #d97706;
+  --color-rose-glow: #e11d48;
 }
 
 :root {
   color-scheme: light;
-  --bg: #f8fafc;
+  --bg: #faf8f5;
   --bg-elevated: #ffffff;
-  --bg-inset: #f1f5f9;
-  --border: #e2e8f0;
-  --text: #0f172a;
-  --text-muted: #64748b;
+  --bg-inset: #f3efe9;
+  --border: #e7e0d5;
+  --text: #292524;
+  --text-muted: #78716c;
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #05070f;
-  --bg-elevated: #0d1120;
-  --bg-inset: #10152a;
-  --border: #1e2540;
-  --text: #e7ebff;
-  --text-muted: #8891b8;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #05070f;
-    --bg-elevated: #0d1120;
-    --bg-inset: #10152a;
-    --border: #1e2540;
-    --text: #e7ebff;
-    --text-muted: #8891b8;
-  }
+  --bg: #171412;
+  --bg-elevated: #211d1a;
+  --bg-inset: #2a2522;
+  --border: #3b342e;
+  --text: #f5f0e8;
+  --text-muted: #a89f93;
 }
 
 html,
@@ -78,18 +68,18 @@ body {
 .card {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(41, 37, 36, 0.04);
 }
 
 .bg-inset {
   background: var(--bg-inset);
 }
 
+/* Dotted "dispatch board" texture for the topology map (dots, not grid). */
 .grid-fade {
-  background-image:
-    linear-gradient(to right, color-mix(in oklab, var(--border) 60%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in oklab, var(--border) 60%, transparent) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 100%);
+  background-image: radial-gradient(color-mix(in oklab, var(--border) 85%, transparent) 1.5px, transparent 1.5px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 85% 70% at 50% 30%, black 40%, transparent 100%);
 }
 
 @keyframes dash {

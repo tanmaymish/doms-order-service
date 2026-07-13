@@ -17,10 +17,10 @@ export function NavBar({ onCartClick }: { onCartClick: () => void }) {
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg)]/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
         <NavLink to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-accent-500 to-cyan-glow text-white text-xs font-bold">D</span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-accent-500 to-amber-glow text-white text-xs font-bold">D</span>
           <span>DOMS</span>
           {DEMO_MODE && (
-            <span className="ml-1 rounded-full bg-cyan-glow/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cyan-glow ring-1 ring-cyan-glow/30">
+            <span className="ml-1 rounded-full bg-amber-glow/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-glow ring-1 ring-amber-glow/30">
               Live Demo
             </span>
           )}
