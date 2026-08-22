@@ -6,8 +6,9 @@
 
 [![CI/CD Pipeline](https://github.com/tanmaymish/doms-order-service/actions/workflows/ci.yml/badge.svg)](https://github.com/tanmaymish/doms-order-service/actions/workflows/ci.yml)
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Control_Tower-6366f1)](https://tanmaymish.github.io/doms-order-service/)
-![Java](https://img.shields.io/badge/Java-8-orange)
-![Spring Cloud](https://img.shields.io/badge/Spring_Cloud-Finchley-6DB33F)
+![Java](https://img.shields.io/badge/Java-21-orange)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F)
+![Spring Cloud](https://img.shields.io/badge/Spring_Cloud-2025.0-6DB33F)
 ![React](https://img.shields.io/badge/React-19-61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6)
 ![License](https://img.shields.io/badge/License-MIT-purple)
@@ -30,7 +31,7 @@ centrally, protected by circuit breakers, and traced end-to-end with Zipkin.
 
 On top of it sits **Control Tower** — a React + TypeScript console that
 doubles as the storefront and as a live view into the mesh: service health,
-Hystrix circuit-breaker state, order throughput, and a real-time event feed
+Resilience4j circuit-breaker state, order throughput, and a real-time event feed
 of every retry, failure, and shipment as it happens.
 
 <p align="center">
@@ -64,7 +65,7 @@ graph TD
     UI -->|/api/inventory-service/**| Inventory[inventory-service :8282]
 
     Orders --> DB[(MySQL / H2)]
-    Catalog -->|Feign + Hystrix| Inventory
+    Catalog -->|Feign + Resilience4j| Inventory
     Catalog --> DB
 
     Orders -.registers.-> Registry[Eureka service-registry :8761]
@@ -80,8 +81,8 @@ graph TD
     Orders -.traces.-> Zipkin[zipkin-server :9411]
     Catalog -.traces.-> Zipkin
 
-    Catalog -.circuit metrics.-> Hystrix[hystrix-dashboard :8788]
-    Orders -.circuit metrics.-> Hystrix
+    Catalog -.circuit state.-> Actuator["/actuator/circuitbreakers"]
+    Orders -.circuit state.-> Actuator
 
     OAuth[oauth2-server :8901] -.auth.-> UI
 ```
@@ -100,7 +101,7 @@ sequenceDiagram
     User->>UI: Browse catalog
     UI->>Gateway: GET /api/catalog-service/api/products
     Gateway->>Catalog: proxied
-    Catalog->>Inventory: Feign + @HystrixCommand (fallback on timeout)
+    Catalog->>Inventory: Feign + @CircuitBreaker (fallback on failure)
     Inventory-->>Catalog: stock levels
     Catalog-->>UI: in-stock products
 
@@ -131,12 +132,12 @@ sequenceDiagram
 - **Edge gateway + service discovery** — Zuul auto-routes to every
   Eureka-registered service; no hardcoded hostnames.
 - **Resilience** — `@Retryable`/`@Recover` on the order-processing path
-  (3 attempts, exponential backoff) and `@HystrixCommand` fallbacks on the
+  (3 attempts, exponential backoff) and Resilience4j `@CircuitBreaker` fallbacks on the
   catalog → inventory call, so a slow/unavailable inventory-service degrades
   gracefully instead of taking checkout down with it.
 - **Centralized config** — every service pulls its properties from
   `config-server` at boot; per-environment overrides live in one repo.
-- **Distributed tracing** — Sleuth + Zipkin correlate a request across
+- **Distributed tracing** — Micrometer Tracing (Brave) + Zipkin correlate a request across
   gateway → catalog → inventory.
 - **Real-time operations console** — Control Tower polls (or, in demo mode,
   simulates) service health, circuit-breaker state, and order throughput,
@@ -152,14 +153,59 @@ sequenceDiagram
 
 | Layer | Technology |
 | :--- | :--- |
-| **Core services** | Java 8, Spring Boot 2.0 |
-| **Microservices** | Spring Cloud (Finchley), Netflix Eureka, Zuul, Hystrix, OpenFeign |
+| **Core services** | Java 21, Spring Boot 3.5 |
+| **Microservices** | Spring Cloud 2025.0, Netflix Eureka, OpenFeign |
 | **Persistence** | Spring Data JPA, Hibernate, H2 (default) / MySQL (docker profile) |
-| **Resilience** | Spring Retry, Hystrix circuit breakers, AspectJ |
-| **Observability** | Spring Boot Actuator, Zipkin, Sleuth, Hystrix Dashboard |
+| **Resilience** | Spring Retry, Resilience4j circuit breakers, AspectJ |
+| **Observability** | Spring Boot Actuator, Micrometer Tracing (Brave), Zipkin |
 | **Frontend** | React 19, TypeScript, Vite, Tailwind CSS v4, Recharts, Framer Motion |
 | **Testing** | JUnit 4, Mockito, MockMvc, JaCoCo, oxlint |
 | **DevOps** | Docker, Docker Compose, GitHub Actions, GitHub Pages |
+
+---
+
+## Stack migration
+
+Five of the nine modules run on **Spring Boot 3.5 / Spring Cloud 2025.0 / Java 21**:
+`config-server`, `service-registry`, `catalog-service`, `inventory-service`, `order-service`.
+They were on Spring Boot 2.0.0.RELEASE (March 2018) with Spring Cloud Finchley.M8 — a
+milestone build — and Java 8. What moved:
+
+| Was | Is | Why |
+| --- | --- | --- |
+| Hystrix | Resilience4j | Hystrix has been out of maintenance since 2018 and is no longer in Spring Cloud |
+| Sleuth + `spring-cloud-starter-zipkin` | Micrometer Tracing (Brave) | Both were removed in Spring Cloud 2022 |
+| `bootstrap.properties` | `spring.config.import` | The bootstrap context was removed in Spring Cloud 2020, so those files were being ignored |
+| `javax.*` | `jakarta.*` | Jakarta EE 9 package rename, required by Boot 3 |
+| JUnit 4 + `SpringRunner` | JUnit 5 | Boot 3's test starter ships JUnit 5 only |
+| `mysql:mysql-connector-java` | `com.mysql:mysql-connector-j` | Driver moved coordinates |
+| `fabric8/java-alpine-openjdk8-jre` | `eclipse-temurin:21-jre-alpine` | The old base image is abandoned, and ran as root with a debugger port open |
+
+Two bugs surfaced on the way. `service-registry` set `eureka.instance.client.*`, which binds
+to nothing — the registry had been silently trying to register with itself. And
+`ContextCopyHystrixConcurrencyStrategy` existed only to copy a correlation id across the
+Hystrix thread pool; Resilience4j runs on the caller's thread, so the class is gone.
+
+### Still on Spring Boot 2.0
+
+`oauth2-server`, `hystrix-dashboard`, `zipkin-server` and `shoppingcart-ui` have not moved,
+and they cannot simply be version-bumped — each needs a real decision:
+
+- **`shoppingcart-ui`** uses `@EnableZuulProxy`. Zuul 1 was dropped from Spring Cloud in
+  2020; the replacement is Spring Cloud Gateway (the MVC flavour, since this module also
+  serves the React console).
+- **`oauth2-server`** uses Spring Security OAuth2, which was removed in Spring Security 6.
+  The replacement is Spring Authorization Server, which is a rewrite rather than a port.
+- **`hystrix-dashboard`** has no modern equivalent. Resilience4j exposes breaker state at
+  `/actuator/circuitbreakers` and events at `/actuator/circuitbreakerevents`, which Control
+  Tower can read directly. The module is a candidate for deletion.
+- **`zipkin-server`** wraps `@EnableZipkinServer`, which Zipkin itself deprecated in 2018.
+  Running the official `openzipkin/zipkin` image from `docker-compose.yml` replaces it.
+
+Because Spring 5.0's CGLIB reflects into `java.lang` (forbidden since JDK 17) and Spring
+Security 5.0 needs JAXB classes the JDK dropped in 11, these four cannot run on a modern
+JVM at all. CI builds them on JDK 8 in a separate job rather than propping them up with
+`--add-opens` and JAXB shims — the split is visible on purpose, and closes when they move.
 
 ---
 
@@ -197,7 +243,7 @@ The console has two modes, selected at build time:
 
 | | **Live mode** (default) | **Demo mode** (`VITE_DEMO_MODE=true`) |
 | :--- | :--- | :--- |
-| Product catalog, orders, metrics | Real gateway calls to `order-service` / `catalog-service` | Fully simulated in-browser, including the 30% retry-failure rate and Hystrix trips |
+| Product catalog, orders, metrics | Real gateway calls to `order-service` / `catalog-service` | Fully simulated in-browser, including the 30% retry-failure rate and circuit-breaker trips |
 | Service health (Control Tower) | Polls each service's `/actuator/health` through the gateway | Simulated |
 | Use case | The actual deployed stack | [GitHub Pages demo](https://tanmaymish.github.io/doms-order-service/) — zero infrastructure |
 
@@ -235,9 +281,16 @@ All of the above are reachable through the gateway at
 ## ✅ Testing & quality
 
 ```bash
-./mvnw test                              # every service's JUnit + Mockito suite
+# The five migrated modules, on JDK 21
+./mvnw test -pl config-server,service-registry,catalog-service,inventory-service,order-service
+
+# The four still on Spring Boot 2.0 - these need a JDK 8 (see Stack migration)
+./mvnw test -pl oauth2-server,hystrix-dashboard,zipkin-server,shoppingcart-ui
+
 cd shoppingcart-ui/frontend && npm run lint && npm run build
 ```
+
+28 tests across the migrated modules, all JUnit 5.
 
 - **order-service**: retry/backoff logic, metrics aggregation, controller
   contracts (`OrderServiceTest`, `OrderControllerTest`).
@@ -245,8 +298,8 @@ cd shoppingcart-ui/frontend && npm run lint && npm run build
   fallbacks, controller contracts (`ProductServiceTest`, `ProductControllerTest`).
 - **inventory-service**: inventory lookup endpoints (`InventoryControllerTest`).
 
-CI runs the full suite on every push/PR (no `-DskipTests`), publishes a
-JaCoCo coverage summary to the workflow run, and uploads the HTML reports as
+CI runs both suites on every push/PR (no `-DskipTests`) as two jobs, one per JDK,
+publishes a JaCoCo coverage summary to the workflow run, and uploads the HTML reports as
 build artifacts. The frontend is linted (`oxlint`) and type-checked
 (`tsc -b`) in a separate, faster job.
 

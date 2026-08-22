@@ -3,6 +3,7 @@ package com.doms.catalogservice.services;
 import com.doms.catalogservice.web.models.ProductInventoryResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
 
@@ -13,6 +14,6 @@ public interface InventoryServiceFeignClient {
     List<ProductInventoryResponse> getInventoryLevels();
 
     @GetMapping("/api/inventory/{productCode}")
-    List<ProductInventoryResponse> getInventoryByProductCode(String productCode);
+    List<ProductInventoryResponse> getInventoryByProductCode(@PathVariable("productCode") String productCode);
 
 }

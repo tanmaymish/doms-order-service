@@ -3,11 +3,11 @@ package com.doms.orderservice.services;
 import com.doms.orderservice.entities.Order;
 import com.doms.orderservice.entities.OrderStatus;
 import com.doms.orderservice.repositories.OrderRepository;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class OrderServiceTest {
 
     @Mock
@@ -25,9 +25,16 @@ public class OrderServiceTest {
 
     private OrderService orderService;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         orderService = new OrderService(orderRepository);
+    }
+
+    /**
+     * createOrder passes save()'s return value on to processOrder, so any test that goes
+     * through createOrder needs save() to hand the order back rather than null.
+     */
+    private void stubSaveToReturnItsArgument() {
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
@@ -55,6 +62,7 @@ public class OrderServiceTest {
 
     @Test
     public void createOrder_swallowsProcessingFailureAndStillReturnsSavedOrder() {
+        stubSaveToReturnItsArgument();
         OrderService failingService = new OrderService(orderRepository) {
             @Override
             boolean simulateTransientFailure() {

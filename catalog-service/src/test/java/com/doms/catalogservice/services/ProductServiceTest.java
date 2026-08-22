@@ -3,11 +3,11 @@ package com.doms.catalogservice.services;
 import com.doms.catalogservice.entities.Product;
 import com.doms.catalogservice.repositories.ProductRepository;
 import com.doms.catalogservice.web.models.ProductInventoryResponse;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -17,7 +17,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class ProductServiceTest {
 
     @Mock
@@ -28,7 +28,7 @@ public class ProductServiceTest {
 
     private ProductService productService;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         productService = new ProductService(productRepository, inventoryServiceClient);
     }
