@@ -35,8 +35,7 @@ const TOPOLOGY: ServiceNode[] = [
   { id: 'catalog', label: 'catalog-service', role: 'Product catalog', state: 'UP', port: 8181, x: 50, y: 58 },
   { id: 'inventory', label: 'inventory-service', role: 'Stock levels', state: 'UP', port: 8282, x: 75, y: 58 },
   { id: 'oauth2', label: 'oauth2-server', role: 'Auth server', state: 'UP', port: 8901, x: 12, y: 84 },
-  { id: 'zipkin', label: 'zipkin-server', role: 'Distributed tracing', state: 'UP', port: 9411, x: 50, y: 84 },
-  { id: 'hystrix', label: 'hystrix-dashboard', role: 'Circuit breaker metrics', state: 'UP', port: 8788, x: 88, y: 84 },
+  { id: 'zipkin', label: 'zipkin', role: 'Distributed tracing', state: 'UP', port: 9411, x: 62, y: 84 },
 ];
 
 const EDGES: [string, string][] = [
@@ -204,8 +203,8 @@ class DemoEngine {
       this.pushTicker(
         cb.state === 'OPEN' ? 'error' : 'success',
         cb.state === 'OPEN'
-          ? 'hystrix: circuit OPEN for catalog-service -> inventory-service, serving fallback'
-          : 'hystrix: circuit CLOSED for catalog-service -> inventory-service, recovered',
+          ? 'resilience4j: circuit OPEN for catalog-service -> inventory-service, serving fallback'
+          : 'resilience4j: circuit CLOSED for catalog-service -> inventory-service, recovered',
       );
       const invNode = this.topology.find((n) => n.id === 'inventory');
       if (invNode) invNode.state = cb.state === 'OPEN' ? 'DEGRADED' : 'UP';

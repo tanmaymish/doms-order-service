@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: shoppingcart-ui
+
+  # Replaces bootstrap.properties: Spring Cloud 2020 removed the bootstrap context, so the
+  # config server is an ordinary config source now. "optional:" keeps the gateway startable
+  # when the config server is not up, which is also what lets the tests boot offline.
+  config:
+    import: "optional:configserver:http://localhost:8888"
+
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          # These three were previously implicit. Zuul's `zuul.prefix=/api` plus its Eureka
+          # route locator meant every registered service was proxied at /api/{serviceId}/**,
+          # whether or not anyone intended it to be public. Writing the routes down keeps the
+          # same URLs the console already calls while limiting the edge to these three.
+          #
+          # StripPrefix=3 drops /ui/api/{service}. Three, not two, because the two halves
+          # of a route treat the servlet context path differently: the Path predicate
+          # matches against the path *within* the application, with /ui already removed,
+          # while StripPrefix counts segments on the full request URI, where /ui is still
+          # there. GatewayRoutingTest asserts the exact path the backend receives, so if
+          # server.servlet.context-path ever changes this fails loudly instead of quietly
+          # proxying to the wrong place.
+          #
+          # lb:// resolves the service through Eureka.
+          routes:
+            - id: catalog-service
+              uri: lb://catalog-service
+              predicates:
+                - Path=/api/catalog-service/**
+              filters:
+                - StripPrefix=3
+            - id: order-service
+              uri: lb://order-service
+              predicates:
+                - Path=/api/order-service/**
+              filters:
+                - StripPrefix=3
+            - id: inventory-service
+              uri: lb://inventory-service
+              predicates:
+                - Path=/api/inventory-service/**
+              filters:
+                - StripPrefix=3
+
+server:
+  port: 8080
+  servlet:
+    context-path: /ui
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"

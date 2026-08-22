@@ -2,7 +2,7 @@ name: DOMS CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, "claude/**" ]
   pull_request:
     branches: [ main, master ]
 
@@ -34,7 +34,7 @@ jobs:
         run: npm run build
 
   build:
-    name: Build & Test (JDK 21)
+    name: Build & Test
     runs-on: ubuntu-latest
 
     steps:
@@ -48,11 +48,10 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    # The five migrated modules: Spring Boot 3.5, Spring Cloud 2025.0, Java 21.
+    # Every module: Spring Boot 3.5, Spring Cloud 2025.0, Java 21. shoppingcart-ui's
+    # frontend-maven-plugin builds the React console as part of this run.
     - name: Build & test with Maven
-      run: >
-        ./mvnw clean package
-        -pl config-server,service-registry,catalog-service,inventory-service,order-service
+      run: ./mvnw clean package
 
     - name: Coverage summary
       if: always()
@@ -87,32 +86,3 @@ jobs:
 
     - name: Finalize Build
       run: echo "Build, test, and Docker image creation successful!"
-
-  legacy:
-    name: Build & Test (JDK 8, pending migration)
-    runs-on: ubuntu-latest
-
-    # oauth2-server, hystrix-dashboard, zipkin-server and shoppingcart-ui are still on
-    # Spring Boot 2.0 and cannot run on a modern JVM: Spring 5.0's CGLIB reflects into
-    # java.lang, which JDK 17 forbids, and Spring Security 5.0 needs the JAXB classes the
-    # JDK dropped in 11. They are built on JDK 8 rather than propped up with --add-opens
-    # and JAXB shims, because each needs a real migration and the README says which:
-    # Zuul 1 to Spring Cloud Gateway, Spring Security OAuth2 to Spring Authorization
-    # Server, and the Hystrix dashboard and Zipkin server modules retired outright.
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
-    - name: Set up JDK 8
-      uses: actions/setup-java@v4
-      with:
-        java-version: '8'
-        distribution: 'temurin'
-        cache: maven
-
-    # shoppingcart-ui's frontend-maven-plugin builds the React console as part of this run.
-    - name: Build & test with Maven
-      run: >
-        ./mvnw clean package
-        -pl oauth2-server,hystrix-dashboard,zipkin-server,shoppingcart-ui
-

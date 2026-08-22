@@ -12,12 +12,15 @@ export function CircuitBreakerPanel({ breakers }: { breakers: CircuitBreaker[] }
   return (
     <div className="card rounded-2xl p-4">
       <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-        <Zap size={15} className="text-accent-500" /> Hystrix circuit breakers
+        <Zap size={15} className="text-accent-500" /> Circuit breakers
       </h3>
       {breakers.length === 0 ? (
         <p className="text-sm text-[var(--text-muted)]">
-          Circuit state isn't exposed through this console in live mode — check the{' '}
-          <span className="font-mono text-xs">hystrix-dashboard</span> service (:8788/hystrix).
+          Circuit state isn't exposed through this console in live mode — Resilience4j
+          publishes it at{' '}
+          <span className="font-mono text-xs">/actuator/circuitbreakers</span> on
+          catalog-service (:8181), with the event stream at{' '}
+          <span className="font-mono text-xs">/actuator/circuitbreakerevents</span>.
         </p>
       ) : (
         <ul className="flex flex-col gap-2">

@@ -46,6 +46,9 @@ services:
     depends_on:
       - vault
 
+  # The official Zipkin image. There used to be a zipkin-server Maven module in
+  # this repo wrapping @EnableZipkinServer; it never fed this container and Zipkin
+  # deprecated that annotation in 2018, so the module is gone.
   zipkin-server:
     image: openzipkin/zipkin:2.21
     container_name: zipkin
@@ -79,13 +82,6 @@ services:
       - "28787:8787"
     depends_on:
       - config-server
-
-  hystrix-dashboard:
-    container_name: hystrix-dashboard
-    build: ./hystrix-dashboard
-    ports:
-      - "8788:8788"
-      - "38787:8787"
 
   oauth2-server:
     container_name: oauth2-server

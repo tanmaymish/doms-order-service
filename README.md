@@ -26,7 +26,7 @@
 
 DOMS is a distributed order-processing platform built on Spring Boot + Spring
 Cloud (Netflix stack): independent services for orders, catalog, and
-inventory, fronted by a Zuul edge gateway, discovered via Eureka, configured
+inventory, fronted by a Spring Cloud Gateway edge, discovered via Eureka, configured
 centrally, protected by circuit breakers, and traced end-to-end with Zipkin.
 
 On top of it sits **Control Tower** — a React + TypeScript console that
@@ -50,15 +50,16 @@ of every retry, failure, and shipment as it happens.
 
 ## 🏗 System Architecture
 
-`shoppingcart-ui` does double duty: it's a `@EnableZuulProxy` edge gateway
-*and* the host for the compiled React console (served as static resources on
-the same origin, so there's no separate frontend deployment or CORS to
-configure). Zuul auto-discovers routes for every service registered in
-Eureka.
+`shoppingcart-ui` does double duty: it's a Spring Cloud Gateway edge *and*
+the host for the compiled React console (served as static resources on the
+same origin, so there's no separate frontend deployment or CORS to
+configure). It runs the MVC flavour of Gateway precisely so one servlet app
+can do both. Routes are declared in its `application.yml` and resolve through
+Eureka with `lb://`.
 
 ```mermaid
 graph TD
-    Client[Browser] --> UI["shoppingcart-ui<br/>Zuul Gateway + React SPA<br/>:8080"]
+    Client[Browser] --> UI["shoppingcart-ui<br/>Spring Cloud Gateway + React SPA<br/>:8080"]
 
     UI -->|/api/order-service/**| Orders[order-service :8383]
     UI -->|/api/catalog-service/**| Catalog[catalog-service :8181]
@@ -93,7 +94,7 @@ graph TD
 sequenceDiagram
     participant User as Customer
     participant UI as Control Tower (React)
-    participant Gateway as shoppingcart-ui (Zuul)
+    participant Gateway as shoppingcart-ui (Gateway)
     participant Orders as order-service
     participant Catalog as catalog-service
     participant Inventory as inventory-service
@@ -129,8 +130,9 @@ sequenceDiagram
 
 ## ⚡ Key capabilities
 
-- **Edge gateway + service discovery** — Zuul auto-routes to every
-  Eureka-registered service; no hardcoded hostnames.
+- **Edge gateway + service discovery** — Spring Cloud Gateway routes to
+  catalog, order and inventory through Eureka (`lb://`), so there are no
+  hardcoded hostnames and no service is exposed at the edge by accident.
 - **Resilience** — `@Retryable`/`@Recover` on the order-processing path
   (3 attempts, exponential backoff) and Resilience4j `@CircuitBreaker` fallbacks on the
   catalog → inventory call, so a slow/unavailable inventory-service degrades
@@ -154,58 +156,72 @@ sequenceDiagram
 | Layer | Technology |
 | :--- | :--- |
 | **Core services** | Java 21, Spring Boot 3.5 |
-| **Microservices** | Spring Cloud 2025.0, Netflix Eureka, OpenFeign |
+| **Microservices** | Spring Cloud 2025.0, Spring Cloud Gateway (MVC), Netflix Eureka, OpenFeign |
+| **Security** | Spring Security 6, Spring Authorization Server (OAuth2 / OIDC, JWT) |
 | **Persistence** | Spring Data JPA, Hibernate, H2 (default) / MySQL (docker profile) |
 | **Resilience** | Spring Retry, Resilience4j circuit breakers, AspectJ |
 | **Observability** | Spring Boot Actuator, Micrometer Tracing (Brave), Zipkin |
 | **Frontend** | React 19, TypeScript, Vite, Tailwind CSS v4, Recharts, Framer Motion |
-| **Testing** | JUnit 4, Mockito, MockMvc, JaCoCo, oxlint |
+| **Testing** | JUnit 5, Mockito, MockMvc, MockWebServer, JaCoCo, oxlint |
 | **DevOps** | Docker, Docker Compose, GitHub Actions, GitHub Pages |
 
 ---
 
 ## Stack migration
 
-Five of the nine modules run on **Spring Boot 3.5 / Spring Cloud 2025.0 / Java 21**:
-`config-server`, `service-registry`, `catalog-service`, `inventory-service`, `order-service`.
-They were on Spring Boot 2.0.0.RELEASE (March 2018) with Spring Cloud Finchley.M8 — a
-milestone build — and Java 8. What moved:
+Every module runs on **Spring Boot 3.5 / Spring Cloud 2025.0 / Java 21**. The starting point
+was Spring Boot 2.0.0.RELEASE (March 2018), Spring Cloud Finchley.M8 — a *milestone* build,
+resolved from `repo.spring.io/milestone` — and Java 8.
 
 | Was | Is | Why |
 | --- | --- | --- |
-| Hystrix | Resilience4j | Hystrix has been out of maintenance since 2018 and is no longer in Spring Cloud |
-| Sleuth + `spring-cloud-starter-zipkin` | Micrometer Tracing (Brave) | Both were removed in Spring Cloud 2022 |
+| Hystrix | Resilience4j | Out of maintenance since 2018 and no longer in Spring Cloud |
+| Zuul 1 (`@EnableZuulProxy`) | Spring Cloud Gateway (MVC) | Zuul 1 was dropped from Spring Cloud in 2020 |
+| Spring Security OAuth2 | Spring Authorization Server | Removed outright in Spring Security 6 |
+| Sleuth + `spring-cloud-starter-zipkin` | Micrometer Tracing (Brave) | Both removed in Spring Cloud 2022 |
 | `bootstrap.properties` | `spring.config.import` | The bootstrap context was removed in Spring Cloud 2020, so those files were being ignored |
 | `javax.*` | `jakarta.*` | Jakarta EE 9 package rename, required by Boot 3 |
 | JUnit 4 + `SpringRunner` | JUnit 5 | Boot 3's test starter ships JUnit 5 only |
 | `mysql:mysql-connector-java` | `com.mysql:mysql-connector-j` | Driver moved coordinates |
-| `fabric8/java-alpine-openjdk8-jre` | `eclipse-temurin:21-jre-alpine` | The old base image is abandoned, and ran as root with a debugger port open |
+| `fabric8/java-alpine-openjdk8-jre` | `eclipse-temurin:21-jre-alpine` | The old base image is abandoned, ran as root, and opened a debugger port on every container |
 
-Two bugs surfaced on the way. `service-registry` set `eureka.instance.client.*`, which binds
-to nothing — the registry had been silently trying to register with itself. And
-`ContextCopyHystrixConcurrencyStrategy` existed only to copy a correlation id across the
-Hystrix thread pool; Resilience4j runs on the caller's thread, so the class is gone.
+Two modules were retired rather than migrated:
 
-### Still on Spring Boot 2.0
-
-`oauth2-server`, `hystrix-dashboard`, `zipkin-server` and `shoppingcart-ui` have not moved,
-and they cannot simply be version-bumped — each needs a real decision:
-
-- **`shoppingcart-ui`** uses `@EnableZuulProxy`. Zuul 1 was dropped from Spring Cloud in
-  2020; the replacement is Spring Cloud Gateway (the MVC flavour, since this module also
-  serves the React console).
-- **`oauth2-server`** uses Spring Security OAuth2, which was removed in Spring Security 6.
-  The replacement is Spring Authorization Server, which is a rewrite rather than a port.
-- **`hystrix-dashboard`** has no modern equivalent. Resilience4j exposes breaker state at
+- **`hystrix-dashboard`** had no modern equivalent. Resilience4j publishes breaker state at
   `/actuator/circuitbreakers` and events at `/actuator/circuitbreakerevents`, which Control
-  Tower can read directly. The module is a candidate for deletion.
-- **`zipkin-server`** wraps `@EnableZipkinServer`, which Zipkin itself deprecated in 2018.
-  Running the official `openzipkin/zipkin` image from `docker-compose.yml` replaces it.
+  Tower reads directly.
+- **`zipkin-server`** wrapped `@EnableZipkinServer`, which Zipkin itself deprecated in 2018 —
+  and `docker-compose.yml` was already running the official `openzipkin/zipkin` image, so the
+  module was never in the path of a single trace.
 
-Because Spring 5.0's CGLIB reflects into `java.lang` (forbidden since JDK 17) and Spring
-Security 5.0 needs JAXB classes the JDK dropped in 11, these four cannot run on a modern
-JVM at all. CI builds them on JDK 8 in a separate job rather than propping them up with
-`--add-opens` and JAXB shims — the split is visible on purpose, and closes when they move.
+### Three behavioural changes worth knowing
+
+**The implicit and password OAuth2 grants are gone.** `client1` used to be registered for
+`authorization_code, implicit, password, client_credentials, refresh_token`. OAuth 2.1 removes
+the first two — implicit returns tokens in a URL fragment where they leak through browser
+history and referrer headers, and password hands the client the user's actual credentials —
+and Spring Authorization Server does not implement them. Tokens are now signed JWTs with a
+published JWKS rather than opaque strings from an in-memory store, and PKCE is required.
+
+**The gateway no longer proxies whatever happens to be registered.** Zuul's `zuul.prefix=/api`
+plus its Eureka route locator meant every service in the registry was reachable from outside,
+whether or not anyone decided it should be. The three routes are written down now.
+
+**A single failed login no longer counts as privilege escalation** — that is a `mini-soc`
+change, but the same instinct: defaults that alert on ordinary behaviour are not security.
+
+### Bugs found on the way
+
+- `service-registry` set `eureka.instance.client.registerWithEureka` and
+  `.fetchRegistry`. Those bind to nothing — the properties are `eureka.client.*` — so the
+  registry had been silently trying to register with and fetch from itself.
+- `ContextCopyHystrixConcurrencyStrategy` existed only to copy a correlation id across
+  Hystrix's thread pool. Resilience4j runs on the caller's thread, so the class is gone.
+- `StripPrefix` on a gateway route counts segments on the full request URI, *including* the
+  servlet context path, while the `Path` predicate matches the path with the context path
+  already removed. The first version of the routes stripped two segments and quietly proxied
+  `/catalog-service/api/products` downstream. `GatewayRoutingTest` asserts the exact path the
+  backend receives, so this fails loudly now instead of silently.
 
 ---
 
@@ -222,8 +238,9 @@ cd doms-order-service
 * **Storefront + Control Tower**: http://localhost:8080/ui/
 * **API Gateway**: http://localhost:8080/ui/api/
 * **Service Discovery**: http://localhost:8761/
-* **Circuit Breaker Dashboard**: http://localhost:8788/hystrix
-* **Distributed Tracing**: http://localhost:9411/
+* **Circuit breaker state**: http://localhost:8181/actuator/circuitbreakers
+* **Distributed Tracing**: http://localhost:9411/ (official `openzipkin/zipkin` image)
+* **Authorization Server**: http://localhost:8901/authserver/.well-known/oauth-authorization-server
 
 `shoppingcart-ui`'s Maven build compiles the React console automatically
 (via `frontend-maven-plugin`, bound to `generate-resources`) — there's no
@@ -281,16 +298,11 @@ All of the above are reachable through the gateway at
 ## ✅ Testing & quality
 
 ```bash
-# The five migrated modules, on JDK 21
-./mvnw test -pl config-server,service-registry,catalog-service,inventory-service,order-service
-
-# The four still on Spring Boot 2.0 - these need a JDK 8 (see Stack migration)
-./mvnw test -pl oauth2-server,hystrix-dashboard,zipkin-server,shoppingcart-ui
-
+./mvnw test                              # every module, JDK 21
 cd shoppingcart-ui/frontend && npm run lint && npm run build
 ```
 
-28 tests across the migrated modules, all JUnit 5.
+38 tests, all JUnit 5.
 
 - **order-service**: retry/backoff logic, metrics aggregation, controller
   contracts (`OrderServiceTest`, `OrderControllerTest`).
@@ -298,9 +310,8 @@ cd shoppingcart-ui/frontend && npm run lint && npm run build
   fallbacks, controller contracts (`ProductServiceTest`, `ProductControllerTest`).
 - **inventory-service**: inventory lookup endpoints (`InventoryControllerTest`).
 
-CI runs both suites on every push/PR (no `-DskipTests`) as two jobs, one per JDK,
-publishes a JaCoCo coverage summary to the workflow run, and uploads the HTML reports as
-build artifacts. The frontend is linted (`oxlint`) and type-checked
+CI runs the full suite on every push/PR (no `-DskipTests`), publishes a JaCoCo coverage
+summary to the workflow run, and uploads the HTML reports as build artifacts. The frontend is linted (`oxlint`) and type-checked
 (`tsc -b`) in a separate, faster job.
 
 ---
